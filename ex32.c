@@ -83,17 +83,10 @@ int main(int argc, char **argv) {
  * @param isBackground - tells if parent need to wait to son
  * @return
  */
-int callExecv(char **args,char operation[INPUT_SIZE],students* myStudents, int i) {
-    args[0]=operation;
-    char cFileFullPath [INPUT_SIZE] ={};
-    strcpy(cFileFullPath,myStudents[i].cfileDirPath);
-    strcat(cFileFullPath,"/");
-    strcat(cFileFullPath,myStudents[i].cFilePath);
-    args[1]=cFileFullPath;
-    args[2]=NULL;
+void callExecv(char **args) {
+
     int stat, retCode;
     pid_t pid;
-    int isAoutExist = FALSE;
     pid = fork();
     if (pid == 0) {  // son
         retCode = execvp(args[0], &args[0]);
@@ -102,64 +95,44 @@ int callExecv(char **args,char operation[INPUT_SIZE],students* myStudents, int i
         }
     } else {   //father
         waitpid(pid, NULL, 0);
-        DIR* dip;
-        struct dirent* dit;
-        char cwd[BUFF_SIZE];
-
-        getcwd(cwd, sizeof(cwd));
-        if((dip=opendir(cwd))==NULL){
-            handleFailure();
-        }
-
-        while ((dit=readdir(dip))!=NULL) {
-
-            if(strcmp(dit->d_name,"a.out")==0) {
-                isAoutExist =TRUE;
-
-
-                //todo: delete all created files
-                if (unlink("a.out")==FAIL) {
-                    handleFailure();
-                }
-                break;
-
-            }
-            if (isAoutExist==FALSE){
-                return FALSE;
-            }
-
-
-
-
-
-        }
 
     }
-    return isAoutExist;
 }
 
 void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]) {
     int i;
-    for (i=0;i<myStudentsSize;i++) {
+    for (i = 0; i < myStudentsSize; i++) {
         //if the c file is not exist
-        if (strcmp(myStudents[i].cFilePath,"\0")==0) {
-            myStudents[i].grade=0;
-            strcpy(myStudents[i].reson,NO_C_FILE);
+        if (strcmp(myStudents[i].cFilePath, "\0") == 0) {
+            myStudents[i].grade = 0;
+            strcpy(myStudents[i].reson, NO_C_FILE);
         } else {
-            //gcc the file
-            char arr[3][INPUT_SIZE];
-            if (callExecv(arr,"gcc",myStudents,i)==FALSE){
-                myStudents[i].grade=0;
-                strcpy(myStudents[i].reson,COMPILATION_ERROR);
+            //make args for compilation
+            char *args[INPUT_SIZE];
+            char operation[INPUT_SIZE] = "gcc";
+            args[0] = operation;
+            char cFileFullPath[INPUT_SIZE] = {};
+            strcpy(cFileFullPath, myStudents[i].cfileDirPath);
+            strcat(cFileFullPath, "/");
+            strcat(cFileFullPath, myStudents[i].cFilePath);
+            args[1] = cFileFullPath;
+            args[2] = NULL;
+            //call gcc
+            callExecv(args);
+            //check if a.out exist
+            if (isAOutExist() == FALSE) {
+                myStudents[i].grade = 0;
+                strcpy(myStudents[i].reson, COMPILATION_ERROR);
+            } else {
+                //run the program
+                runProgram(inputFilePath);
             }
-            int programOutputFD;
-            //in case compilation passed
-            if ((programOutputFD = open("programOutput", O_CREAT|O_TRUNC|O_WRONLY, 0644)) < 0)
-            {
+
+
+            //todo: delete all created files
+            if (unlink("a.out") == FAIL) {
                 handleFailure();
             }
-            dup2(programOutputFD, 1);
-
 
 
 
@@ -167,7 +140,52 @@ void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[I
     }
 
 }
+int isAOutExist() {
+    int isAoutExist = FALSE;
+    DIR *dip;
+    struct dirent *dit;
+    char cwd[BUFF_SIZE];
+    getcwd(cwd, sizeof(cwd));
+    if ((dip = opendir(cwd)) == NULL) {
+        handleFailure();
+    }
 
+    while ((dit = readdir(dip)) != NULL) {
+
+        if (strcmp(dit->d_name, "a.out") == 0) {
+            isAoutExist = TRUE;
+            break;
+        }
+    }
+    return isAoutExist;
+}
+
+void runProgram(char inputFilePath[INPUT_SIZE]) {
+
+
+    int programOutputFD;
+    if ((programOutputFD = open("programOutput", O_CREAT | O_TRUNC | O_WRONLY, 0644)) < 0) {
+        handleFailure();
+    }
+    int programInputFD;
+    if ((programInputFD = open(inputFilePath,O_RDONLY)) < 0) {
+        handleFailure();
+    }
+    dup2(programInputFD,stdin);
+    dup2(programOutputFD, stdout);
+    //make args for a.out
+    char *args[INPUT_SIZE];
+    char operation[INPUT_SIZE] = "./a.out";
+    args[0] = operation;
+    args[1] = NULL;
+    //call a.out
+    callExecv(args);
+    close(programInputFD);
+    close(programOutputFD);
+    //todo:make comparison between the output and the expected output
+    //todo: close fd's and dirs!!
+
+}
 void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) {
     DIR* dip;
     struct dirent* dit;
