@@ -8,9 +8,10 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <memory.h>
+#include <wait.h>
 
 //define
-#define Fail -1
+#define FAIL -1
 #define TRUE 1
 #define FALSE 0
 #define BUFF_SIZE 1024
@@ -22,7 +23,15 @@
 #define UPDATE2 2
 #define UPDATE3 3
 #define SPACE 32
-#define tab 32
+#define TAB 32
+#define NO_C_FILE "NO_C_FILE"
+#define COMPILATION_ERROR "COMPILATION_ERROR"
+#define TIMEOUT "TIMEOUT"
+#define BAD_OUTPUT "BAD_OUTPUT"
+#define SIMILAR_OUTPUT "SIMILAR_OUTPUT"
+#define GREAT_JOB "GREAT_JOB"
+
+
 
 
 //declarations
@@ -31,14 +40,14 @@ int readCMDFile(char* cmdFile,char directoryPath[INPUT_SIZE], char inputFilePath
 typedef struct students {
     char name[INPUT_SIZE];
     char cFilePath[INPUT_SIZE];
+    char cfileDirPath[INPUT_SIZE];
     int grade;
+    char reson[INPUT_SIZE];
 
 } students;
-char * findTheCFile(char subDir[INPUT_SIZE]);
-void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents);
-
-
-void gradeStudents(students myStudents[300]);
+char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i);
+void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i);
+void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]);
 
 /**
  * main function.
@@ -59,28 +68,112 @@ int main(int argc, char **argv) {
     printf("cmd file text:\n%s\n%s\n%s\n", directoryPath, inputFilePath, outputFilePath);
     //todo: allocate dynamic memory
     students myStudents[INPUT_SIZE];
+    int i =0;
 
-    exploreSubDirs(directoryPath,myStudents);
-    gradeStudents(myStudents);
+    exploreSubDirs(directoryPath,myStudents,&i);
+    gradeStudents(myStudents,i,inputFilePath,outputFilePath);
 
     printf("liz");
     return 0;
 }
 
-void gradeStudents(students* myStudents) {
+/**
+ * callExecv function.
+ * @param args - array for execvp function
+ * @param isBackground - tells if parent need to wait to son
+ * @return
+ */
+int callExecv(char **args,char operation[INPUT_SIZE],students* myStudents, int i) {
+    args[0]=operation;
+    char cFileFullPath [INPUT_SIZE] ={};
+    strcpy(cFileFullPath,myStudents[i].cfileDirPath);
+    strcat(cFileFullPath,"/");
+    strcat(cFileFullPath,myStudents[i].cFilePath);
+    args[1]=cFileFullPath;
+    args[2]=NULL;
+    int stat, retCode;
+    pid_t pid;
+    int isAoutExist = FALSE;
+    pid = fork();
+    if (pid == 0) {  // son
+        retCode = execvp(args[0], &args[0]);
+        if (retCode == FAIL) {
+            handleFailure();
+        }
+    } else {   //father
+        waitpid(pid, NULL, 0);
+        DIR* dip;
+        struct dirent* dit;
+        char cwd[BUFF_SIZE];
 
-   // while ()
+        getcwd(cwd, sizeof(cwd));
+        if((dip=opendir(cwd))==NULL){
+            handleFailure();
+        }
+
+        while ((dit=readdir(dip))!=NULL) {
+
+            if(strcmp(dit->d_name,"a.out")==0) {
+                isAoutExist =TRUE;
+
+
+                //todo: delete all created files
+                if (unlink("a.out")==FAIL) {
+                    handleFailure();
+                }
+                break;
+
+            }
+            if (isAoutExist==FALSE){
+                return FALSE;
+            }
+
+
+
+
+
+        }
+
+    }
+    return isAoutExist;
+}
+
+void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]) {
+    int i;
+    for (i=0;i<myStudentsSize;i++) {
+        //if the c file is not exist
+        if (strcmp(myStudents[i].cFilePath,"\0")==0) {
+            myStudents[i].grade=0;
+            strcpy(myStudents[i].reson,NO_C_FILE);
+        } else {
+            //gcc the file
+            char arr[3][INPUT_SIZE];
+            if (callExecv(arr,"gcc",myStudents,i)==FALSE){
+                myStudents[i].grade=0;
+                strcpy(myStudents[i].reson,COMPILATION_ERROR);
+            }
+            int programOutputFD;
+            //in case compilation passed
+            if ((programOutputFD = open("programOutput", O_CREAT|O_TRUNC|O_WRONLY, 0644)) < 0)
+            {
+                handleFailure();
+            }
+            dup2(programOutputFD, 1);
+
+
+
+
+        }
+    }
 
 }
 
-void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents) {
+void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) {
     DIR* dip;
     struct dirent* dit;
     if((dip=opendir(directoryPath))==NULL){
         handleFailure();
     }
-
-    int i=0;
 
     while ((dit=readdir(dip))!=NULL) {
         if(dit->d_type==DT_DIR &&strcmp(dit->d_name,".")!=0&&strcmp(dit->d_name,"..")!=0) {
@@ -88,9 +181,11 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents) {
             printf("%s\n", dit->d_name);
 
             //fill the students array
-            strcpy(myStudents[i].cFilePath,"\0");
-            strcpy(myStudents[i].name,"\0");
-            strcpy(myStudents[i].name,dit->d_name);
+            strcpy(myStudents[*i].cFilePath,"\0");
+            strcpy(myStudents[*i].name,"\0");
+            strcpy(myStudents[*i].reson,"\0");
+            strcpy(myStudents[*i].cfileDirPath,"\0");
+            strcpy(myStudents[*i].name,dit->d_name);
             //concat the subDir path
             char subDir[INPUT_SIZE]={};
             strcpy(subDir,directoryPath);
@@ -99,19 +194,20 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents) {
                 strcat(subDir,"/");
             }
             strcat(subDir,dit->d_name);
-            strcpy(myStudents[i].cFilePath,findTheCFile(subDir));
-            i++;
+
+            strcpy(myStudents[*i].cFilePath,findTheCFile(subDir,myStudents,*i));
+            (*i)++;
 
         }
     }
 
-    if(closedir(dip)==Fail){
+    if(closedir(dip)==FAIL){
         handleFailure();
     }
-    return myStudents;
+    //return myStudents;
 }
 
-char * findTheCFile(char subDir[INPUT_SIZE]){
+char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i){
     DIR* dip;
     struct dirent* dit;
     if((dip=opendir(subDir))==NULL){
@@ -120,16 +216,38 @@ char * findTheCFile(char subDir[INPUT_SIZE]){
 
     while ((dit=readdir(dip))!=NULL) {
 
-        if (dit->d_type==DT_REG){
+        if (dit->d_type == DT_REG) {
             int len = strlen(dit->d_name);
-            printf("%s\n",dit->d_name);
-            if(len>=2&&dit->d_name[len-1]=='c'&&dit->d_name[len-2]=='.'){
-                printf("----%s\n",dit->d_name);
+            printf("%s\n", dit->d_name);
+            if (len >= 2 && dit->d_name[len - 1] == 'c' && dit->d_name[len - 2] == '.') {
+                printf("----%s\n", dit->d_name);
+                strcpy(myStudents[i].cfileDirPath, subDir);
+                //concat the subDir path
+                /*char subDirectory[INPUT_SIZE]={};
+                strcpy(subDirectory,subDir);
 
+                int len = strlen(subDirectory);
+                if (subDirectory[len]!='/') {
+                    strcat(subDirectory,"/");
+                }
+                strcat(subDirectory,dit->d_name);
+                return subDirectory;*/
                 return dit->d_name;
             }
 
+        } else if (dit->d_type == DT_DIR && strcmp(dit->d_name, ".") != 0 && strcmp(dit->d_name, "..") != 0) {
+            //concat the subDir path
+            char subDirectory[INPUT_SIZE]={};
+            strcpy(subDirectory,subDir);
+
+            int len = strlen(subDirectory);
+            if (subDirectory[len]!='/') {
+                strcat(subDirectory,"/");
+            }
+            strcat(subDirectory,dit->d_name);
+            return findTheCFile(subDirectory, myStudents, i);
         }
+
     }
     //in case c file is not exist
     return "\0";
@@ -141,7 +259,7 @@ char * findTheCFile(char subDir[INPUT_SIZE]){
  */
 void handleFailure() {
     write(STDERR, ERROR, ERROR_SIZE);
-    exit(Fail);
+    exit(FAIL);
 }
 
 
