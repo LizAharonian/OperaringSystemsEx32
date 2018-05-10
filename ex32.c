@@ -35,8 +35,10 @@ typedef struct students {
 
 } students;
 char * findTheCFile(char subDir[INPUT_SIZE]);
-students* exploreSubDirs(char directoryPath[INPUT_SIZE]);
+void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents);
 
+
+void gradeStudents(students myStudents[300]);
 
 /**
  * main function.
@@ -55,18 +57,29 @@ int main(int argc, char **argv) {
     char outputFilePath[INPUT_SIZE] = {};
     readCMDFile(argv[1], directoryPath, inputFilePath, outputFilePath);
     printf("cmd file text:\n%s\n%s\n%s\n", directoryPath, inputFilePath, outputFilePath);
-    students *students = exploreSubDirs(directoryPath);
+    //todo: allocate dynamic memory
+    students myStudents[INPUT_SIZE];
+
+    exploreSubDirs(directoryPath,myStudents);
+    gradeStudents(myStudents);
 
     printf("liz");
+    return 0;
 }
-students* exploreSubDirs(char directoryPath[INPUT_SIZE]) {
+
+void gradeStudents(students* myStudents) {
+
+   // while ()
+
+}
+
+void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents) {
     DIR* dip;
     struct dirent* dit;
     if((dip=opendir(directoryPath))==NULL){
         handleFailure();
     }
-    //todo: allocate dynamic memory
-    students mystudents[INPUT_SIZE];
+
     int i=0;
 
     while ((dit=readdir(dip))!=NULL) {
@@ -75,9 +88,9 @@ students* exploreSubDirs(char directoryPath[INPUT_SIZE]) {
             printf("%s\n", dit->d_name);
 
             //fill the students array
-            strcpy(mystudents[i].cFilePath,"\0");
-            strcpy(mystudents[i].name,"\0");
-            strcpy(mystudents[i].name,dit->d_name);
+            strcpy(myStudents[i].cFilePath,"\0");
+            strcpy(myStudents[i].name,"\0");
+            strcpy(myStudents[i].name,dit->d_name);
             //concat the subDir path
             char subDir[INPUT_SIZE]={};
             strcpy(subDir,directoryPath);
@@ -86,7 +99,7 @@ students* exploreSubDirs(char directoryPath[INPUT_SIZE]) {
                 strcat(subDir,"/");
             }
             strcat(subDir,dit->d_name);
-            strcpy(mystudents[i].cFilePath,findTheCFile(subDir));
+            strcpy(myStudents[i].cFilePath,findTheCFile(subDir));
             i++;
 
         }
@@ -95,7 +108,7 @@ students* exploreSubDirs(char directoryPath[INPUT_SIZE]) {
     if(closedir(dip)==Fail){
         handleFailure();
     }
-    return mystudents;
+    return myStudents;
 }
 
 char * findTheCFile(char subDir[INPUT_SIZE]){
@@ -118,7 +131,7 @@ char * findTheCFile(char subDir[INPUT_SIZE]){
 
         }
     }
-    //in case c file is empty
+    //in case c file is not exist
     return "\0";
 }
 
