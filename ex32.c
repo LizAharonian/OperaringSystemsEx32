@@ -48,6 +48,7 @@ typedef struct students {
 char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i);
 void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i);
 void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]);
+void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i);
 
 /**
  * main function.
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
     exploreSubDirs(directoryPath,myStudents,&i);
     gradeStudents(myStudents,i,inputFilePath,outputFilePath);
 
-    printf("liz");
+    //printf("liz");
     return 0;
 }
 
@@ -94,7 +95,7 @@ void callExecv(char **args) {
             handleFailure();
         }
     } else {   //father
-        waitpid(pid, NULL, 0);
+        waitpid(pid, NULL, WCONTINUED);
 
     }
 }
@@ -125,14 +126,14 @@ void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[I
                 strcpy(myStudents[i].reson, COMPILATION_ERROR);
             } else {
                 //run the program
-                runProgram(inputFilePath);
+                runProgram(inputFilePath,myStudents,i);
             }
 
 
             //todo: delete all created files
-            if (unlink("a.out") == FAIL) {
+           /* if (unlink("a.out") == FAIL) {
                 handleFailure();
-            }
+            }*/
 
 
 
@@ -160,28 +161,51 @@ int isAOutExist() {
     return isAoutExist;
 }
 
-void runProgram(char inputFilePath[INPUT_SIZE]) {
-
-
-    int programOutputFD;
-    if ((programOutputFD = open("programOutput", O_CREAT | O_TRUNC | O_WRONLY, 0644)) < 0) {
-        handleFailure();
-    }
-    int programInputFD;
-    if ((programInputFD = open(inputFilePath,O_RDONLY)) < 0) {
-        handleFailure();
-    }
-    dup2(programInputFD,stdin);
-    dup2(programOutputFD, stdout);
+void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i) {
     //make args for a.out
     char *args[INPUT_SIZE];
     char operation[INPUT_SIZE] = "./a.out";
     args[0] = operation;
     args[1] = NULL;
-    //call a.out
-    callExecv(args);
-    close(programInputFD);
-    close(programOutputFD);
+    int stat, retCode;
+    pid_t pid;
+    pid = fork();
+     if (pid == 0) {  // son
+         int programOutputFD;
+         if ((programOutputFD = open("programOutput.txt", O_CREAT | O_TRUNC | O_WRONLY, 0644)) < 0) {
+             handleFailure();
+         }
+         int programInputFD;
+         if ((programInputFD = open(inputFilePath, O_RDONLY)) < 0) {
+             handleFailure();
+         }
+
+         int t = dup2(programInputFD, 0);
+         int y = dup2(programOutputFD, 1);
+         retCode = execvp(args[0], &args[0]);
+         if (retCode == FAIL) {
+             handleFailure();
+         }
+         close(programInputFD);
+         close(programOutputFD);
+     } else {   //father
+         int value;
+         sleep(5);
+         pid_t returnPid = waitpid(pid, &value, WNOHANG);
+         //if a.out still running
+         if (returnPid ==0) {
+             myStudents[i].grade=0;
+             strcpy(myStudents[i].reson,TIMEOUT);
+         }else { //start comparisson
+            printf("iji");
+         }
+         /*else if (value!=0) {//running failed
+             myStudents[i].grade=0;
+             strcpy(myStudents[i].reson,TIMEOUT);
+         }*/
+
+     }
+
     //todo:make comparison between the output and the expected output
     //todo: close fd's and dirs!!
 
