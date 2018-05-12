@@ -48,7 +48,7 @@ typedef struct students {
 char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i);
 void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i);
 void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]);
-void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i);
+void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char outputFilePath[INPUT_SIZE]);
 
 /**
  * main function.
@@ -126,7 +126,7 @@ void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[I
                 strcpy(myStudents[i].reson, COMPILATION_ERROR);
             } else {
                 //run the program
-                runProgram(inputFilePath,myStudents,i);
+                runProgram(inputFilePath,myStudents,i,outputFilePath);
             }
 
 
@@ -161,7 +161,7 @@ int isAOutExist() {
     return isAoutExist;
 }
 
-void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i) {
+void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char outputFilePath[INPUT_SIZE]) {
     //make args for a.out
     char *args[INPUT_SIZE];
     char operation[INPUT_SIZE] = "./a.out";
@@ -180,8 +180,14 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i) {
              handleFailure();
          }
 
-         int t = dup2(programInputFD, 0);
-         int y = dup2(programOutputFD, 1);
+         retCode = dup2(programInputFD, 0);
+         if (retCode == FAIL) {
+             handleFailure();
+         }
+         retCode = dup2(programOutputFD, 1);
+         if (retCode == FAIL) {
+             handleFailure();
+         }
          retCode = execvp(args[0], &args[0]);
          if (retCode == FAIL) {
              handleFailure();
@@ -197,7 +203,45 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i) {
              myStudents[i].grade=0;
              strcpy(myStudents[i].reson,TIMEOUT);
          }else { //start comparisson
-            printf("iji");
+             //make args for comp.out
+             char *args[INPUT_SIZE];
+             char operation[INPUT_SIZE] = "./comp.out";
+             args[0] = operation;
+             args[1] = "programOutput.txt";
+             args[2] = outputFilePath;
+             args[3] = NULL;
+             pid_t pid;
+             pid = fork();
+             if (pid == 0) {  // son
+
+                 retCode = execvp(args[0], &args[0]);
+                 if (retCode == FAIL) {
+                     handleFailure();
+                 }
+             } else {//father
+                 waitpid(pid, &value, 0);
+
+
+                 switch (value) {
+                     case 1:
+                         myStudents[i].grade = 60;
+                         strcpy(myStudents[i].reson, BAD_OUTPUT);
+                         break;
+                     case 2:
+                         myStudents[i].grade = 80;
+                         strcpy(myStudents[i].reson, SIMILAR_OUTPUT);
+                         break;
+                     case 3:
+                         myStudents[i].grade = 100;
+                         strcpy(myStudents[i].reson, GREAT_JOB);
+                         break;
+                     default:
+                         break;
+                 }
+
+
+             }
+
          }
          /*else if (value!=0) {//running failed
              myStudents[i].grade=0;
