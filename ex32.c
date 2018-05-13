@@ -73,6 +73,19 @@ int main(int argc, char **argv) {
 
     exploreSubDirs(directoryPath,myStudents,&i);
     gradeStudents(myStudents,i,inputFilePath,outputFilePath);
+    int resultsCsvFD;
+    if((resultsCsvFD=open("results.csv",O_CREAT | O_TRUNC | O_WRONLY, 0644))==-1)
+    {
+        handleFailure();
+    }
+    int j;
+    for (j=0;j<i;j++) {
+        if(write(resultsCsvFD,"liz,aharonian\n",13)<0)
+        {
+           handleFailure();
+        }
+    }
+    close(resultsCsvFD);
 
     //printf("liz");
     return 0;
@@ -194,6 +207,15 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char 
          }
          close(programInputFD);
          close(programOutputFD);
+        /* retCode = dup2(0, 0);
+         if (retCode == FAIL) {
+             handleFailure();
+         }
+         retCode = dup2(1, 1);
+         if (retCode == FAIL) {
+             handleFailure();
+         }*/
+
      } else {   //father
          int value;
          sleep(5);
@@ -220,23 +242,30 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char 
                  }
              } else {//father
                  waitpid(pid, &value, 0);
+                 if ( WIFEXITED(value) ) {
+                     const int es = WEXITSTATUS(value);
+                     printf("exit status was %d\n", es);
 
 
-                 switch (value) {
-                     case 1:
-                         myStudents[i].grade = 60;
-                         strcpy(myStudents[i].reson, BAD_OUTPUT);
-                         break;
-                     case 2:
-                         myStudents[i].grade = 80;
-                         strcpy(myStudents[i].reson, SIMILAR_OUTPUT);
-                         break;
-                     case 3:
-                         myStudents[i].grade = 100;
-                         strcpy(myStudents[i].reson, GREAT_JOB);
-                         break;
-                     default:
-                         break;
+                     switch (es) {
+                         case 1:
+                             myStudents[i].grade = 60;
+                             strcpy(myStudents[i].reson, BAD_OUTPUT);
+                             break;
+                         case 2:
+                             myStudents[i].grade = 80;
+                             strcpy(myStudents[i].reson, SIMILAR_OUTPUT);
+                             break;
+                         case 3:
+                             myStudents[i].grade = 100;
+                             strcpy(myStudents[i].reson, GREAT_JOB);
+                             break;
+                         default:
+                             break;
+                     }
+                 }
+                 if (unlink("a.out") == FAIL||unlink("programOutput.txt")) {
+                     handleFailure();
                  }
 
 
