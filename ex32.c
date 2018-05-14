@@ -19,6 +19,7 @@
 #define STDERR 2
 #define ERROR_SIZE 21
 #define INPUT_SIZE 300
+#define CONCAT 1000
 #define UPDATE1 1
 #define UPDATE2 2
 #define UPDATE3 3
@@ -41,11 +42,11 @@ typedef struct students {
     char name[INPUT_SIZE];
     char cFilePath[INPUT_SIZE];
     char cfileDirPath[INPUT_SIZE];
-    int grade;
+    char grade[INPUT_SIZE];
     char reson[INPUT_SIZE];
 
 } students;
-char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i);
+void findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i,char cPath[INPUT_SIZE]);
 void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i);
 void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]);
 void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char outputFilePath[INPUT_SIZE]);
@@ -80,7 +81,14 @@ int main(int argc, char **argv) {
     }
     int j;
     for (j=0;j<i;j++) {
-        if(write(resultsCsvFD,"liz,aharonian\n",13)<0)
+        char concat[CONCAT] ={};
+        strcpy(concat,myStudents[j].name);
+        strcat(concat,",");
+        strcat(concat,myStudents[j].grade);
+        strcat(concat,",");
+        strcat(concat,myStudents[j].reson);
+        strcat(concat,"\n");
+        if(write(resultsCsvFD,concat,CONCAT)<0)
         {
            handleFailure();
         }
@@ -118,7 +126,7 @@ void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[I
     for (i = 0; i < myStudentsSize; i++) {
         //if the c file is not exist
         if (strcmp(myStudents[i].cFilePath, "\0") == 0) {
-            myStudents[i].grade = 0;
+            strcpy(myStudents[i].grade, "0");
             strcpy(myStudents[i].reson, NO_C_FILE);
         } else {
             //make args for compilation
@@ -135,7 +143,7 @@ void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[I
             callExecv(args);
             //check if a.out exist
             if (isAOutExist() == FALSE) {
-                myStudents[i].grade = 0;
+                strcpy(myStudents[i].grade, "0");
                 strcpy(myStudents[i].reson, COMPILATION_ERROR);
             } else {
                 //run the program
@@ -222,7 +230,7 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char 
          pid_t returnPid = waitpid(pid, &value, WNOHANG);
          //if a.out still running
          if (returnPid ==0) {
-             myStudents[i].grade=0;
+             strcpy(myStudents[i].grade, "0");
              strcpy(myStudents[i].reson,TIMEOUT);
          }else { //start comparisson
              //make args for comp.out
@@ -249,15 +257,15 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char 
 
                      switch (es) {
                          case 1:
-                             myStudents[i].grade = 60;
+                             strcpy(myStudents[i].grade, "60");
                              strcpy(myStudents[i].reson, BAD_OUTPUT);
                              break;
                          case 2:
-                             myStudents[i].grade = 80;
+                             strcpy(myStudents[i].grade, "80");
                              strcpy(myStudents[i].reson, SIMILAR_OUTPUT);
                              break;
                          case 3:
-                             myStudents[i].grade = 100;
+                             strcpy(myStudents[i].grade, "100");
                              strcpy(myStudents[i].reson, GREAT_JOB);
                              break;
                          default:
@@ -291,29 +299,44 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) 
     }
 
     while ((dit=readdir(dip))!=NULL) {
-        if(dit->d_type==DT_DIR &&strcmp(dit->d_name,".")!=0&&strcmp(dit->d_name,"..")!=0) {
+        if (dit->d_type == DT_DIR && strcmp(dit->d_name, ".") != 0 && strcmp(dit->d_name, "..") != 0) {
             //debug only
             printf("%s\n", dit->d_name);
 
             //fill the students array
-            strcpy(myStudents[*i].cFilePath,"\0");
-            strcpy(myStudents[*i].name,"\0");
-            strcpy(myStudents[*i].reson,"\0");
-            strcpy(myStudents[*i].cfileDirPath,"\0");
-            strcpy(myStudents[*i].name,dit->d_name);
+            strcpy(myStudents[*i].cFilePath, "\0");
+            strcpy(myStudents[*i].name, "\0");
+            strcpy(myStudents[*i].reson, "\0");
+            strcpy(myStudents[*i].cfileDirPath, "\0");
+            strcpy(myStudents[*i].name, dit->d_name);
             //concat the subDir path
-            char subDir[INPUT_SIZE]={};
-            strcpy(subDir,directoryPath);
+            char subDir[INPUT_SIZE] = {};
+            strcpy(subDir, directoryPath);
             int len = strlen(subDir);
-            if (subDir[len]!='/') {
-                strcat(subDir,"/");
+            if (subDir[len] != '/') {
+                strcat(subDir, "/");
             }
-            strcat(subDir,dit->d_name);
+            strcat(subDir, dit->d_name);
+            char cPath[INPUT_SIZE]={};
 
-            strcpy(myStudents[*i].cFilePath,findTheCFile(subDir,myStudents,*i));
+            findTheCFile(subDir, myStudents, *i, cPath);
+
+            strcpy(myStudents[*i].cFilePath, cPath);
+            printf("here,remmember play with the order%s",cPath);
             (*i)++;
 
-        }
+        } /*else if (dit->d_type == DT_REG) {
+            int len = strlen(dit->d_name);
+            printf("%s\n", dit->d_name);
+            if (len >= 2 && dit->d_name[len - 1] == 'c' && dit->d_name[len - 2] == '.') {
+                printf("----%s\n", dit->d_name);
+                strcpy(myStudents[*i].cfileDirPath, directoryPath);
+                strcpy(myStudents[*i].cFilePath, dit->d_name);
+                printf("%s", dit->d_name);
+                (*i)++;
+                break;
+            }*/
+        //}
     }
 
     if(closedir(dip)==FAIL){
@@ -322,7 +345,7 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) 
     //return myStudents;
 }
 
-char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i){
+void findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i,char cPath[INPUT_SIZE]){
     DIR* dip;
     struct dirent* dit;
     if((dip=opendir(subDir))==NULL){
@@ -337,17 +360,9 @@ char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i){
             if (len >= 2 && dit->d_name[len - 1] == 'c' && dit->d_name[len - 2] == '.') {
                 printf("----%s\n", dit->d_name);
                 strcpy(myStudents[i].cfileDirPath, subDir);
-                //concat the subDir path
-                /*char subDirectory[INPUT_SIZE]={};
-                strcpy(subDirectory,subDir);
 
-                int len = strlen(subDirectory);
-                if (subDirectory[len]!='/') {
-                    strcat(subDirectory,"/");
-                }
-                strcat(subDirectory,dit->d_name);
-                return subDirectory;*/
-                return dit->d_name;
+                strcpy(cPath,dit->d_name);
+                break;
             }
 
         } else if (dit->d_type == DT_DIR && strcmp(dit->d_name, ".") != 0 && strcmp(dit->d_name, "..") != 0) {
@@ -360,12 +375,10 @@ char * findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i){
                 strcat(subDirectory,"/");
             }
             strcat(subDirectory,dit->d_name);
-            return findTheCFile(subDirectory, myStudents, i);
+            findTheCFile(subDirectory, myStudents, i,cPath);
         }
 
     }
-    //in case c file is not exist
-    return "\0";
 }
 
 /**
