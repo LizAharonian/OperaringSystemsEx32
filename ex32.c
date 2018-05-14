@@ -24,15 +24,13 @@
 #define UPDATE2 2
 #define UPDATE3 3
 #define SPACE 32
-#define TAB 32
 #define NO_C_FILE "NO_C_FILE"
 #define COMPILATION_ERROR "COMPILATION_ERROR"
 #define TIMEOUT "TIMEOUT"
 #define BAD_OUTPUT "BAD_OUTPUT"
 #define SIMILAR_OUTPUT "SIMILAR_OUTPUT"
 #define GREAT_JOB "GREAT_JOB"
-
-
+#define STUSENTS_NUM 100
 
 
 //declarations
@@ -69,7 +67,7 @@ int main(int argc, char **argv) {
     readCMDFile(argv[1], directoryPath, inputFilePath, outputFilePath);
     printf("cmd file text:\n%s\n%s\n%s\n", directoryPath, inputFilePath, outputFilePath);
     //todo: allocate dynamic memory
-    students* myStudents=(students *)malloc(INPUT_SIZE * sizeof(students));
+    students* myStudents=(students *)malloc(STUSENTS_NUM * sizeof(students));
     if (myStudents==NULL) {
         handleFailure();
     }
@@ -301,7 +299,7 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) 
     if((dip=opendir(directoryPath))==NULL){
         handleFailure();
     }
-    int sizeOfStudentsArr = INPUT_SIZE;
+    int sizeOfStudentsArr = STUSENTS_NUM;
 
     while ((dit=readdir(dip))!=NULL) {
         if (dit->d_type == DT_DIR && strcmp(dit->d_name, ".") != 0 && strcmp(dit->d_name, "..") != 0) {
@@ -330,7 +328,7 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) 
             printf("here,remmember play with the order%s",cPath);
             (*i)++;
             if ((*i)>=sizeOfStudentsArr) {
-                sizeOfStudentsArr+=INPUT_SIZE;
+                sizeOfStudentsArr+=STUSENTS_NUM;
                 myStudents = (students *)realloc(myStudents,sizeof(struct students)*sizeOfStudentsArr);
                 if (myStudents==NULL){
                     handleFailure();
