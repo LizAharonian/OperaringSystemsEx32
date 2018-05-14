@@ -69,7 +69,10 @@ int main(int argc, char **argv) {
     readCMDFile(argv[1], directoryPath, inputFilePath, outputFilePath);
     printf("cmd file text:\n%s\n%s\n%s\n", directoryPath, inputFilePath, outputFilePath);
     //todo: allocate dynamic memory
-    students myStudents[INPUT_SIZE];
+    students* myStudents=(students *)malloc(INPUT_SIZE * sizeof(students));
+    if (myStudents==NULL) {
+        handleFailure();
+    }
     int i =0;
 
     exploreSubDirs(directoryPath,myStudents,&i);
@@ -94,6 +97,7 @@ int main(int argc, char **argv) {
         }
     }
     close(resultsCsvFD);
+    free(myStudents);
 
     //printf("liz");
     return 0;
@@ -297,6 +301,7 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) 
     if((dip=opendir(directoryPath))==NULL){
         handleFailure();
     }
+    int sizeOfStudentsArr = INPUT_SIZE;
 
     while ((dit=readdir(dip))!=NULL) {
         if (dit->d_type == DT_DIR && strcmp(dit->d_name, ".") != 0 && strcmp(dit->d_name, "..") != 0) {
@@ -324,6 +329,13 @@ void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i) 
             strcpy(myStudents[*i].cFilePath, cPath);
             printf("here,remmember play with the order%s",cPath);
             (*i)++;
+            if ((*i)>=sizeOfStudentsArr) {
+                sizeOfStudentsArr+=INPUT_SIZE;
+                myStudents = (students *)realloc(myStudents,sizeof(struct students)*sizeOfStudentsArr);
+                if (myStudents==NULL){
+                    handleFailure();
+                }
+            }
 
         } /*else if (dit->d_type == DT_REG) {
             int len = strlen(dit->d_name);
