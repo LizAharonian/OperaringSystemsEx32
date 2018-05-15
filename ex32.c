@@ -32,10 +32,6 @@
 #define GREAT_JOB "GREAT_JOB"
 #define STUSENTS_NUM 100
 
-
-//declarations
-void handleFailure();
-void readCMDFile(char* cmdFile,char directoryPath[INPUT_SIZE], char inputFilePath[INPUT_SIZE],char outputFilePath [INPUT_SIZE]);
 typedef struct students {
     char name[INPUT_SIZE];
     char cFilePath[INPUT_SIZE];
@@ -44,10 +40,14 @@ typedef struct students {
     char reson[INPUT_SIZE];
 
 } students;
+//declarations
+void handleFailure();
+void readCMDFile(char* cmdFile,char directoryPath[INPUT_SIZE], char inputFilePath[INPUT_SIZE],char outputFilePath [INPUT_SIZE]);
 void findTheCFile(char subDir[INPUT_SIZE],students* myStudents,int i,char cPath[INPUT_SIZE]);
 void exploreSubDirs(char directoryPath[INPUT_SIZE],students* myStudents,int* i);
 void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[INPUT_SIZE], char outputFilePath[INPUT_SIZE]);
 void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char outputFilePath[INPUT_SIZE]);
+void writeResultsToCsv(students * myStudents, int i);
 
 /**
  * main function.
