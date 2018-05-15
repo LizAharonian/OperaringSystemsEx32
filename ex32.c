@@ -106,7 +106,9 @@ void writeResultsToCsv(students * myStudents, int i){
             handleFailure();
         }
     }
-    close(resultsCsvFD);
+    if (close(resultsCsvFD)==FAIL) {
+        handleFailure();
+    }
 
 }
 
@@ -154,11 +156,13 @@ void gradeStudents(students* myStudents,int myStudentsSize, char inputFilePath[I
             strcpy(cFileFullPath, myStudents[i].cfileDirPath);
             strcat(cFileFullPath, "/");
             strcat(cFileFullPath, myStudents[i].cFilePath);
-            args[1] = cFileFullPath;
-            args[2] = NULL;
+            args[1] ="-o";
+            args[2]="temp.out";
+            args[3] = cFileFullPath;
+            args[4] = NULL;
             //call gcc
             callExecv(args);
-            //check if a.out exist
+            //check if temp.out exist
             if (isAOutExist() == FALSE) {
                 strcpy(myStudents[i].grade, "0");
                 strcpy(myStudents[i].reson, COMPILATION_ERROR);
@@ -181,7 +185,7 @@ int isAOutExist() {
     }
     while ((dit = readdir(dip)) != NULL) {
 
-        if (strcmp(dit->d_name, "a.out") == 0) {
+        if (strcmp(dit->d_name, "temp.out") == 0) {
             isAoutExist = TRUE;
             break;
         }
@@ -197,9 +201,9 @@ int isAOutExist() {
  * @param outputFilePath - output file
  */
 void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char outputFilePath[INPUT_SIZE]) {
-    //make args for a.out
+    //make args for temp.out
     char *args[INPUT_SIZE];
-    char operation[INPUT_SIZE] = "./a.out";
+    char operation[INPUT_SIZE] = "./temp.out";
     args[0] = operation;
     args[1] = NULL;
     int stat, retCode;
@@ -226,13 +230,14 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char 
         if (retCode == FAIL) {
             handleFailure();
         }
-        close(programInputFD);
-        close(programOutputFD);
+        if ((close(programInputFD)==FAIL)||(close(programOutputFD))==FAIL){
+            handleFailure();
+        }
     } else {   //father
         int value;
         sleep(5);
         pid_t returnPid = waitpid(pid, &value, WNOHANG);
-        //if a.out still running
+        //if temp.out still running
         if (returnPid ==0) {
             strcpy(myStudents[i].grade, "0");
             strcpy(myStudents[i].reson,TIMEOUT);
@@ -273,7 +278,7 @@ void runProgram(char inputFilePath[INPUT_SIZE],students* myStudents, int i,char 
                             break;
                     }
                 }
-                if (unlink("a.out") == FAIL||unlink("programOutput.txt")) {
+                if (unlink("temp.out") == FAIL||unlink("programOutput.txt")) {
                     handleFailure();
                 }
             }
